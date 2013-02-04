@@ -751,6 +751,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     address->name = strdup(ent->ifa_name);
 
+    address->if_index = if_nametoindex(address->name);
+
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
     } else {
