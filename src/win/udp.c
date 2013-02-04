@@ -539,7 +539,7 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   struct ip_mreq mreq;
 
   /* If the socket is unbound, bind to inaddr_any. */
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
+  if (!(handle->flags & UV_HANDLE_IPV6) && !(handle->flags & UV_HANDLE_BOUND)) {
     err = uv_udp_try_bind(handle,
                           (const struct sockaddr*) &uv_addr_ip4_any_,
                           sizeof(uv_addr_ip4_any_),
@@ -549,7 +549,7 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   }
 
   if (handle->flags & UV_HANDLE_IPV6) {
-    return UV_ENOSYS;
+    return uv__udp_set_membership6(handle, multicast_addr, interface_addr, membership);
   }
 
   memset(&mreq, 0, sizeof mreq);
@@ -584,6 +584,85 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   return 0;
 }
 
+
+static int uv__udp_set_membership6(uv_udp_t* handle,
+                            const char* multicast_addr,
+                            const char* interface_addr,
+                            uv_membership membership) {
+  int optname;
+  int interfaces_count;
+  int i;
+  struct ipv6_mreq mreq;
+  struct in6_addr multicast_addr_n;
+  struct in6_addr interface_addr_n;
+  uv_interface_address_t* interfaces;
+    
+  if (!(handle->flags & UV_HANDLE_IPV6)) {
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+  }
+
+  if (!(handle->flags & UV_HANDLE_BOUND) &&
+      uv_udp_bind6(handle, uv_addr_ip6_any_, 0) < 0) {
+    return -1;
+  }
+
+  memset(&mreq, 0, sizeof mreq);
+  memset(&multicast_addr_n, 0, sizeof multicast_addr_n);
+  memset(&interface_addr_n, 0, sizeof interface_addr_n);
+
+  if (interface_addr != NULL) {
+    uv_inet_pton(AF_INET6, interface_addr, &interface_addr_n);
+    if (uv_interface_addresses(&interfaces, &interfaces_count).code != UV_OK) {
+      uv__set_sys_error(handle->loop, WSAGetLastError());
+      return -1;
+    }
+
+    for (i = 0; i < interfaces_count; i++) {
+      if (interfaces[i].address.address6.sin6_family == AF_INET6) {
+        if (memcmp(&interfaces[i].address.address6.sin6_addr,
+                   &interface_addr_n,
+                   sizeof interface_addr_n) == 0) {
+          mreq.ipv6mr_interface = interfaces[i].if_index;
+          break;
+        }
+      }
+    }
+
+    if (mreq.ipv6mr_interface == 0) {
+      uv__set_artificial_error(handle->loop, UV_EINVAL);
+      return -1;
+    }
+  }
+  if (uv_inet_pton(AF_INET6, multicast_addr, &multicast_addr_n).code != UV_OK) {
+    uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  mreq.ipv6mr_multiaddr = multicast_addr_n;
+
+  switch (membership) {
+    case UV_JOIN_GROUP:
+      optname = IPV6_ADD_MEMBERSHIP;
+      break;
+    case UV_LEAVE_GROUP:
+      optname = IPV6_DROP_MEMBERSHIP;
+      break;
+    default:
+      uv__set_artificial_error(handle->loop, UV_EINVAL);
+      return -1;
+  }
+
+  if (setsockopt(handle->socket,
+                 IPPROTO_IPV6,
+                 optname,
+                 (char*) &mreq,
+                 sizeof mreq) == SOCKET_ERROR) {
+      uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
+}
 
 int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
   BOOL optval = (BOOL) value;

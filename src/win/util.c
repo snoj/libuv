@@ -920,6 +920,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses_ptr,
                                     (int) max_name_size,
                                     NULL,
                                     FALSE);
+
+    uv_address->if_index = 0;
+    uv_address->if_index = (win_address->IfIndex) ? win_address->IfIndex : win_address->Ipv6IfIndex;
+
     if (name_size <= 0) {
       free(win_address_buf);
       free(uv_address_buf);
