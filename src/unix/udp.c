@@ -516,7 +516,7 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
   if (interface_addr != NULL) {
     uv_inet_pton(AF_INET6, interface_addr, &interface_addr_n);
     if (uv_interface_addresses(&interfaces, &interfaces_count) != 0)
-      return -1
+      return -1;
       /*return uv__set_sys_error(handle->loop, UV_EINVAL);*/
 
     for (i = 0; i < interfaces_count; i++) {
@@ -536,7 +536,7 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
     }
   }
 
-  if (uv_inet_pton(AF_INET6, multicast_addr, &multicast_addr_n).code != UV_OK) {
+  if (uv_inet_pton(AF_INET6, multicast_addr, &multicast_addr_n) != 0) {
     /*uv__set_artificial_error(handle->loop, UV_EINVAL);*/
     return -1;
   }
