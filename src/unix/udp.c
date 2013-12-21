@@ -35,8 +35,6 @@ static void uv__udp_io(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static void uv__udp_recvmsg(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static void uv__udp_sendmsg(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain);
-static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
-    int bufcnt, struct sockaddr* addr, socklen_t addrlen, uv_udp_send_cb send_cb);
 static int uv__udp_set_membership6(uv_udp_t* handle, 
                                    const char* multicast_addr,
                                    const char* interface_addr, 
