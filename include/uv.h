@@ -952,6 +952,23 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
     uv_membership membership);
 
 /*
+* Set membership for a multicast IPV6 address
+*
+* Arguments:
+*  handle              UDP handle. Should have been initialized with
+*                      `uv_udp_init`.
+*  multicast_addr      multicast address to set membership for
+*  interface_addr      interface address
+*  membership          Should be UV_JOIN_GROUP or UV_LEAVE_GROUP
+*
+* Returns:
+*  0 on success, or an error code < 0 on failure.
+*/
+UV_EXTERN int uv_udp_set_membership6(uv_udp_t* handle,
+  const char* multicast_addr, const char* interface_addr,
+  uv_membership membership);
+
+/*
  * Set IP multicast loop flag. Makes multicast packets loop back to
  * local sockets.
  *

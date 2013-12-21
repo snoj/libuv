@@ -549,7 +549,7 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   }
 
   if (handle->flags & UV_HANDLE_IPV6) {
-    return uv__udp_set_membership6(handle, multicast_addr, interface_addr, membership);
+    return uv_udp_set_membership6(handle, multicast_addr, interface_addr, membership);
   }
 
   memset(&mreq, 0, sizeof mreq);
@@ -570,7 +570,7 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
       optname = IP_DROP_MEMBERSHIP;
       break;
     default:
-      return UV_EINVAL;
+      return UV__EINVAL;
   }
 
   if (setsockopt(handle->socket,
@@ -585,36 +585,42 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
 }
 
 
-static int uv__udp_set_membership6(uv_udp_t* handle,
+int uv_udp_set_membership6(uv_udp_t* handle,
                             const char* multicast_addr,
                             const char* interface_addr,
                             uv_membership membership) {
   int optname;
   int interfaces_count;
   int i;
+  int err;
   struct ipv6_mreq mreq;
   struct in6_addr multicast_addr_n;
   struct in6_addr interface_addr_n;
   uv_interface_address_t* interfaces;
     
   if (!(handle->flags & UV_HANDLE_IPV6)) {
-    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+	  return -1;
   }
 
-  if (!(handle->flags & UV_HANDLE_BOUND) &&
-      uv_udp_bind6(handle, uv_addr_ip6_any_, 0) < 0) {
-    return -1;
+  if (!(handle->flags & UV_HANDLE_BOUND)) {
+    err = uv_udp_try_bind(handle,
+                          (const struct sockaddr*) &uv_addr_ip6_any_,
+                          sizeof(uv_addr_ip6_any_),
+                          0);
+
+    if (err) {
+      return uv_translate_sys_error(err);
+    }
   }
 
-  memset(&mreq, 0, sizeof mreq);
+  memset(&mreq, 0, sizeof(mreq));
   memset(&multicast_addr_n, 0, sizeof multicast_addr_n);
   memset(&interface_addr_n, 0, sizeof interface_addr_n);
 
   if (interface_addr != NULL) {
     uv_inet_pton(AF_INET6, interface_addr, &interface_addr_n);
-    if (uv_interface_addresses(&interfaces, &interfaces_count).code != UV_OK) {
-      uv__set_sys_error(handle->loop, WSAGetLastError());
-      return -1;
+    if (uv_interface_addresses(&interfaces, &interfaces_count) != 0) {
+      return uv_translate_sys_error(WSAGetLastError());
     }
 
     for (i = 0; i < interfaces_count; i++) {
@@ -629,13 +635,11 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
     }
 
     if (mreq.ipv6mr_interface == 0) {
-      uv__set_artificial_error(handle->loop, UV_EINVAL);
       return -1;
     }
   }
-  if (uv_inet_pton(AF_INET6, multicast_addr, &multicast_addr_n).code != UV_OK) {
-    uv__set_sys_error(handle->loop, WSAGetLastError());
-    return -1;
+  if (uv_inet_pton(AF_INET6, multicast_addr, &multicast_addr_n) != 0) {
+    return uv_translate_sys_error(WSAGetLastError());
   }
 
   mreq.ipv6mr_multiaddr = multicast_addr_n;
@@ -648,7 +652,6 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
       optname = IPV6_DROP_MEMBERSHIP;
       break;
     default:
-      uv__set_artificial_error(handle->loop, UV_EINVAL);
       return -1;
   }
 
@@ -657,8 +660,7 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
                  optname,
                  (char*) &mreq,
                  sizeof mreq) == SOCKET_ERROR) {
-      uv__set_sys_error(handle->loop, WSAGetLastError());
-    return -1;
+    return uv_translate_sys_error(WSAGetLastError());
   }
 
   return 0;
