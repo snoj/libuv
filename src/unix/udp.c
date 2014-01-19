@@ -459,8 +459,9 @@ int uv_udp_set_membership(uv_udp_t* handle,
                           uv_membership membership) {
   struct ip_mreq mreq;
   int optname;
+  struct sockaddr_in6 addr6;
 
-  if (handle->flags & UV_HANDLE_IPV6) {
+  if (uv_ip6_addr("::0", TEST_PORT, &addr6) == 0) {
     return uv__udp_set_membership6(handle, multicast_addr, interface_addr, membership);
   }
 
