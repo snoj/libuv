@@ -556,7 +556,7 @@ static int uv__udp_set_membership6(uv_udp_t* handle,
     return -1;
   }
 
-  if (setsockopt(handle->io_watcher.fd, IPPROTO_IPV6, optname, &mreq, sizeof mreq) == -1) {
+  if (setsockopt(handle->io_watcher.fd, IPPROTO_IPV6, optname, &mreq, sizeof mreq) != 0) {
     /*uv__set_artificial_error(handle->loop, UV_EINVAL);*/
     return -1;
   }
